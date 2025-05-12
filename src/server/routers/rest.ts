@@ -34,6 +34,11 @@ export class APIRouter {
         try {
           const input = validateCreateShortInput(req.body);
 
+          // Ensure transitionType defaults to 'fade' if not provided
+          if (!input.config.transitionType) {
+            input.config.transitionType = 'fade';
+          }
+
           const videoId = this.shortCreator.addToQueue(
             input.scenes,
             input.config,

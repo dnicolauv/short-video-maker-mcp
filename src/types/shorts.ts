@@ -105,6 +105,7 @@ export const renderConfig = z.object({
     .nativeEnum(OrientationEnum)
     .optional()
     .describe("Orientation of the video, default is portrait"),
+  transitionType: z.string().optional().describe("Type of transition between scenes, default is 'fade'."),
 });
 export type RenderConfig = z.infer<typeof renderConfig>;
 

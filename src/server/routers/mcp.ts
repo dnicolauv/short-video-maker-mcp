@@ -57,6 +57,10 @@ export class MCPRouter {
         config: renderConfig.describe("Configuration for rendering the video"),
       },
       async ({ scenes, config }) => {
+        // Ensure transitionType defaults to 'fade' if not provided
+        if (!config.transitionType) {
+          config.transitionType = 'fade';
+        }
         const videoId = await this.shortCreator.addToQueue(scenes, config);
 
         return {

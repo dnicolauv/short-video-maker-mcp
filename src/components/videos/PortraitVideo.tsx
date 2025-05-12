@@ -6,10 +6,14 @@ import {
   Audio,
   staticFile,
   OffthreadVideo,
+  spring,
 } from "remotion";
 import { z } from "zod";
 import { loadFont } from "@remotion/google-fonts/BarlowCondensed";
 import { createCaptionPages, shortVideoSchema } from "../utils";
+import React from 'react';
+import { linearTiming, TransitionSeries } from "@remotion/transitions";
+import { fade } from "@remotion/transitions/fade";
 
 const { fontFamily } = loadFont(); // "Barlow Condensed"
 
@@ -19,7 +23,7 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
   config,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
 
   const captionBackgroundColor = config.captionBackgroundColor ?? "blue";
 
@@ -32,122 +36,121 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
   };
 
   const captionPosition = config.captionPosition ?? "center";
-  let captionStyle = {};
+  let captionStyle: React.CSSProperties = {};
   if (captionPosition === "top") {
     captionStyle = { top: 100 };
-  }
-  if (captionPosition === "center") {
+  } else if (captionPosition === "bottom") {
+    captionStyle = { bottom: 100 };
+  } else {
     captionStyle = { top: "50%", transform: "translateY(-50%)" };
   }
-  if (captionPosition === "bottom") {
-    captionStyle = { bottom: 100 };
-  }
+
+  const PageWrapper: React.FC<{
+    children: React.ReactNode;
+    isActive: boolean;
+  }> = ({ children, isActive }) => {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          width: "100%",
+          textAlign: "center",
+          fontFamily,
+          fontSize: "1.5em", 
+          color: "white",
+          fontWeight: "bold",
+          textShadow: "0px 0px 8px black", 
+          WebkitTextStroke: "0.5px black", 
+          textTransform: "uppercase",
+          ...(isActive ? activeStyle : {}),
+          ...captionStyle,
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  const transitionDurationFrames = Math.floor(fps * 0.5); 
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "white" }}>
-      <Audio
-        loop
-        src={staticFile(music.file)}
-        startFrom={music.start * fps}
-        endAt={music.end * fps}
-        volume={0.1}
-      />
+    <AbsoluteFill style={{ backgroundColor: "black" }}>
+      {music && music.file && (
+        <Audio 
+          src={staticFile(music.file)} 
+          startFrom={music.start * fps} 
+          endAt={music.end ? music.end * fps : undefined} 
+          loop 
+          volume={0.1} 
+        />
+      )}
+      <TransitionSeries>
+        {scenes.flatMap((scene, i) => {
+          const { captions, audio, video } = scene;
+          const pages = createCaptionPages({
+            captions,
+            lineMaxLength: 20, 
+            lineCount: 2, 
+            maxDistanceMs: 1000,
+          });
 
-      {scenes.map((scene, i) => {
-        const { captions, audio, video } = scene;
-        const pages = createCaptionPages({
-          captions,
-          lineMaxLength: 20,
-          lineCount: 1,
-          maxDistanceMs: 1000,
-        });
+          let sceneDurationInFrames = audio.duration * fps;
+          if (config.paddingBack && i === scenes.length - 1) {
+            sceneDurationInFrames += (config.paddingBack / 1000) * fps;
+          }
 
-        // Calculate the start and end time of the scene
-        const startFrame =
-          scenes.slice(0, i).reduce((acc, curr) => {
-            return acc + curr.audio.duration;
-          }, 0) * fps;
-        let durationInFrames =
-          scenes.slice(0, i + 1).reduce((acc, curr) => {
-            return acc + curr.audio.duration;
-          }, 0) * fps;
-        if (config.paddingBack && i === scenes.length - 1) {
-          durationInFrames += (config.paddingBack / 1000) * fps;
-        }
+          const sequenceElement = (
+            <TransitionSeries.Sequence
+              key={`scene-${i}`}
+              durationInFrames={Math.round(sceneDurationInFrames)}
+            >
+              <AbsoluteFill>
+                {video && <OffthreadVideo src={staticFile(video)} muted style={{ objectFit: 'cover', height: '100%', width: '100%' }} />}
+                {audio.url && <Audio src={staticFile(audio.url)} />}
+                {pages.map((page, j) => {
+                  const pageDurationMs = page.endMs - page.startMs;
+                  return (
+                    <Sequence
+                      key={`caption-${i}-${j}`}
+                      from={Math.round(page.startMs * (fps / 1000))}
+                      durationInFrames={Math.round(pageDurationMs * (fps / 1000))}
+                    >
+                      <PageWrapper isActive={true}>
+                        {page.lines.map((lineObject, k) => (
+                          <div key={k} style={{ marginBottom: '0.2em' }}> 
+                            {lineObject.texts.map(textSegment => textSegment.text).join(' ')}
+                          </div>
+                        ))}
+                      </PageWrapper>
+                    </Sequence>
+                  );
+                })}
+              </AbsoluteFill>
+            </TransitionSeries.Sequence>
+          );
 
-        return (
-          <Sequence
-            from={startFrame}
-            durationInFrames={durationInFrames}
-            key={`scene-${i}`}
-          >
-            <OffthreadVideo src={video} muted />
-            <Audio src={audio.url} />
-            {pages.map((page, j) => {
-              return (
-                <Sequence
-                  key={`scene-${i}-page-${j}`}
-                  from={Math.round((page.startMs / 1000) * fps)}
-                  durationInFrames={Math.round(
-                    ((page.endMs - page.startMs) / 1000) * fps,
-                  )}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      width: "100%",
-                      ...captionStyle,
-                    }}
-                  >
-                    {page.lines.map((line, k) => {
-                      return (
-                        <p
-                          style={{
-                            fontSize: "6em",
-                            fontFamily: fontFamily,
-                            fontWeight: "black",
-                            color: "white",
-                            WebkitTextStroke: "2px black",
-                            WebkitTextFillColor: "white",
-                            textShadow: "0px 0px 10px black",
-                            textAlign: "center",
-                            width: "100%",
-                            // uppercase
-                            textTransform: "uppercase",
-                          }}
-                          key={`scene-${i}-page-${j}-line-${k}`}
-                        >
-                          {line.texts.map((text, l) => {
-                            const active =
-                              frame >=
-                                startFrame + (text.startMs / 1000) * fps &&
-                              frame <= startFrame + (text.endMs / 1000) * fps;
-                            return (
-                              <>
-                                <span
-                                  style={{
-                                    fontWeight: "bold",
-                                    ...(active ? activeStyle : {}),
-                                  }}
-                                  key={`scene-${i}-page-${j}-line-${k}-text-${l}`}
-                                >
-                                  {text.text}
-                                </span>
-                                {l < line.texts.length - 1 ? " " : ""}
-                              </>
-                            );
-                          })}
-                        </p>
-                      );
-                    })}
-                  </div>
-                </Sequence>
-              );
-            })}
-          </Sequence>
-        );
-      })}
+          if (i < scenes.length - 1) {
+            let presentation;
+            switch (config.transitionType) {
+              case 'fade':
+                presentation = fade();
+                break;
+              default:
+                presentation = fade();
+            }
+
+            const transitionElement = (
+              <TransitionSeries.Transition
+                key={`transition-${i}`}
+                timing={linearTiming({ durationInFrames: transitionDurationFrames })}
+                presentation={presentation}
+              />
+            );
+            return [sequenceElement, transitionElement];
+          }
+          return [sequenceElement];
+        })}
+      </TransitionSeries>
     </AbsoluteFill>
   );
 };

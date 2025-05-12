@@ -23,6 +23,7 @@ export const shortVideoSchema = z.object({
     captionPosition: z.enum(["top", "center", "bottom"]).optional(),
     captionBackgroundColor: z.string().optional(),
     durationMs: z.number(),
+    transitionType: z.string().optional().describe("Type of transition between scenes, default is 'fade'."),
   }),
   music: z.object({
     file: z.string(),
