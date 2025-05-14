@@ -6,7 +6,6 @@ import {
   Audio,
   staticFile,
   OffthreadVideo,
-  spring,
 } from "remotion";
 import { z } from "zod";
 import { loadFont } from "@remotion/google-fonts/BarlowCondensed";
@@ -56,11 +55,11 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
           width: "100%",
           textAlign: "center",
           fontFamily,
-          fontSize: "1.5em", 
+          fontSize: "1.5em",
           color: "white",
           fontWeight: "bold",
-          textShadow: "0px 0px 8px black", 
-          WebkitTextStroke: "0.5px black", 
+          textShadow: "0px 0px 8px black",
+          WebkitTextStroke: "0.5px black",
           textTransform: "uppercase",
           ...(isActive ? activeStyle : {}),
           ...captionStyle,
@@ -71,17 +70,17 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
     );
   };
 
-  const transitionDurationFrames = Math.floor(fps * 0.5); 
+  const transitionDurationFrames = Math.floor(fps * 0.5);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       {music && music.file && (
-        <Audio 
-          src={staticFile(music.file)} 
-          startFrom={music.start * fps} 
-          endAt={music.end ? music.end * fps : undefined} 
-          loop 
-          volume={0.1} 
+        <Audio
+          src={music.file.startsWith('http') ? music.file : staticFile(music.file)}
+          startFrom={music.start * fps}
+          endAt={music.end ? music.end * fps : undefined}
+          loop
+          volume={0.1}
         />
       )}
       <TransitionSeries>
@@ -89,8 +88,8 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
           const { captions, audio, video } = scene;
           const pages = createCaptionPages({
             captions,
-            lineMaxLength: 20, 
-            lineCount: 2, 
+            lineMaxLength: 20,
+            lineCount: 2,
             maxDistanceMs: 1000,
           });
 
@@ -105,8 +104,18 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
               durationInFrames={Math.round(sceneDurationInFrames)}
             >
               <AbsoluteFill>
-                {video && <OffthreadVideo src={staticFile(video)} muted style={{ objectFit: 'cover', height: '100%', width: '100%' }} />}
-                {audio.url && <Audio src={staticFile(audio.url)} />}
+                {video && (
+                  <OffthreadVideo
+                    src={video.startsWith('http') ? video : staticFile(video)}
+                    muted
+                    style={{ objectFit: 'cover', height: '100%', width: '100%' }}
+                  />
+                )}
+                {audio.url && (
+                  <Audio
+                    src={audio.url.startsWith('http') ? audio.url : staticFile(audio.url)}
+                  />
+                )}
                 {pages.map((page, j) => {
                   const pageDurationMs = page.endMs - page.startMs;
                   return (
@@ -117,7 +126,7 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
                     >
                       <PageWrapper isActive={true}>
                         {page.lines.map((lineObject, k) => (
-                          <div key={k} style={{ marginBottom: '0.2em' }}> 
+                          <div key={k} style={{ marginBottom: '0.2em' }}>
                             {lineObject.texts.map(textSegment => textSegment.text).join(' ')}
                           </div>
                         ))}
@@ -130,15 +139,7 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
           );
 
           if (i < scenes.length - 1) {
-            let presentation;
-            switch (config.transitionType) {
-              case 'fade':
-                presentation = fade();
-                break;
-              default:
-                presentation = fade();
-            }
-
+            const presentation = fade(); // solo fade por ahora
             const transitionElement = (
               <TransitionSeries.Transition
                 key={`transition-${i}`}
@@ -148,6 +149,7 @@ export const PortraitVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
             );
             return [sequenceElement, transitionElement];
           }
+
           return [sequenceElement];
         })}
       </TransitionSeries>

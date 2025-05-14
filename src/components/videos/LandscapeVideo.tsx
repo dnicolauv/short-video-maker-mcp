@@ -6,7 +6,6 @@ import {
   Audio,
   staticFile,
   OffthreadVideo,
-  spring,
 } from "remotion";
 import { z } from "zod";
 import { loadFont } from "@remotion/google-fonts/BarlowCondensed";
@@ -76,12 +75,12 @@ export const LandscapeVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       {music && music.file && (
-        <Audio 
-          src={staticFile(music.file)} 
-          startFrom={music.start * fps} 
-          endAt={music.end ? music.end * fps : undefined} 
-          loop 
-          volume={0.1} 
+        <Audio
+          src={music.file.startsWith('http') ? music.file : staticFile(music.file)}
+          startFrom={music.start * fps}
+          endAt={music.end ? music.end * fps : undefined}
+          loop
+          volume={0.1}
         />
       )}
       <TransitionSeries>
@@ -105,19 +104,29 @@ export const LandscapeVideo: React.FC<z.infer<typeof shortVideoSchema>> = ({
               durationInFrames={Math.round(sceneDurationInFrames)} 
             >
               <AbsoluteFill>
-                {video && <OffthreadVideo src={staticFile(video)} muted />}
-                {audio.url && <Audio src={staticFile(audio.url)} />}
+                {video && (
+                  <OffthreadVideo
+                    src={video.startsWith('http') ? video : staticFile(video)}
+                    muted
+                    style={{ objectFit: 'cover', height: '100%', width: '100%' }}
+                  />
+                )}
+                {audio.url && (
+                  <Audio
+                    src={audio.url.startsWith('http') ? audio.url : staticFile(audio.url)}
+                  />
+                )}
                 {pages.map((page, j) => {
                   const pageDurationMs = page.endMs - page.startMs;
                   return (
                     <Sequence
                       key={`caption-${i}-${j}`}
-                      from={Math.round(page.startMs * (fps / 1000))} 
+                      from={Math.round(page.startMs * (fps / 1000))}
                       durationInFrames={Math.round(pageDurationMs * (fps / 1000))}
                     >
                       <PageWrapper isActive={true}>
                         {page.lines.map((lineObject, k) => (
-                          <div key={k} style={{ marginBottom: '0.25em' }}> 
+                          <div key={k} style={{ marginBottom: '0.2em' }}>
                             {lineObject.texts.map(textSegment => textSegment.text).join(' ')}
                           </div>
                         ))}
