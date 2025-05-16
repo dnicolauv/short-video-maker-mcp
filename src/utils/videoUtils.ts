@@ -5,7 +5,7 @@ import type {
   CaptionLine,
   OrientationEnum,
 } from "../types/shorts";
-import { AvailableComponentsEnum, type OrientationConfig } from "./types";
+import { AvailableComponentsEnum, type OrientationConfig } from "../components/types";
 
 export const shortVideoSchema = z.object({
   scenes: z.array(
