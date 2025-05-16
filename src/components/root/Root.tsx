@@ -1,5 +1,5 @@
 import { CalculateMetadataFunction, Composition } from "remotion";
-import { shortVideoSchema } from "../utils";
+import { shortVideoSchema } from "../../utils/videoUtils";
 import { PortraitVideo } from "../videos/PortraitVideo";
 import { LandscapeVideo } from "../videos/LandscapeVideo";
 import { TestVideo } from "../videos/Test";

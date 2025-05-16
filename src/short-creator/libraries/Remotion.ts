@@ -5,10 +5,10 @@ import path from "path";
 import { ensureBrowser } from "@remotion/renderer";
 
 import { Config } from "../../config";
-import { shortVideoSchema } from "../../components/utils";
+import { shortVideoSchema } from "../../utils/videoUtils";
 import { logger } from "../../logger";
 import { OrientationEnum } from "../../types/shorts";
-import { getOrientationConfig } from "../../components/utils";
+import { getOrientationConfig } from "../../utils/videoUtils";
 
 export class Remotion {
   constructor(

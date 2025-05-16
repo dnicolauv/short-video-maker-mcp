@@ -1,5 +1,5 @@
 /* eslint-disable @remotion/deterministic-randomness */
-import { getOrientationConfig } from "../../components/utils";
+import { getOrientationConfig } from "../../utils/videoUtils";
 import { logger } from "../../logger";
 import { OrientationEnum, type Video } from "../../types/shorts";
 

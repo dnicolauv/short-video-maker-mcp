@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import path from "path";
 import fs from "fs-extra";
 
@@ -12,9 +11,36 @@ import { ShortCreator } from "./short-creator/ShortCreator";
 import { logger } from "./logger";
 import { Server } from "./server/server";
 import { MusicManager } from "./short-creator/music";
+import { GeminiEnhancer } from "./short-creator/libraries/GeminiEnhancer";
+
+type Scene = {
+  text: string;
+  searchTerms: string[];
+  video?: string;
+  enhancedPrompt?: string;
+};
+
+async function enhanceScenePrompts(
+  scenes: Scene[],
+  geminiEnhancer: GeminiEnhancer,
+  pexelsApi: PexelsAPI
+): Promise<Scene[]> {
+  return Promise.all(
+    scenes.map(async (scene) => {
+      const enhanced = await geminiEnhancer.enhancePrompt(scene.text, scene.searchTerms);
+      const result = await pexelsApi.findVideo([enhanced], 2.5);
+      return {
+        ...scene,
+        video: result?.url ?? null,
+        enhancedPrompt: enhanced,
+      };
+    }),
+  );
+}
 
 async function main() {
   const config = new Config();
+
   try {
     config.ensureConfig();
   } catch (err: unknown) {
@@ -40,6 +66,23 @@ async function main() {
   logger.debug("initializing ffmpeg");
   const ffmpeg = await FFMpeg.init();
   const pexelsApi = new PexelsAPI(config.pexelsApiKey);
+  const geminiEnhancer = new GeminiEnhancer(config.geminiApiKey);
+
+  if (config.inputData?.scenes) {
+    logger.debug("Enhancing scenes with Gemini");
+
+    // normalize the scenes so that searchTerms always exists and is an array
+    const scenesWithKeywords: Scene[] = config.inputData.scenes.map(scene => ({
+      ...scene,
+      searchTerms: scene.searchTerms ?? [],
+    }));
+
+    config.inputData.scenes = await enhanceScenePrompts(
+      scenesWithKeywords,
+      geminiEnhancer,
+      pexelsApi
+    );
+  }
 
   logger.debug("initializing the short creator");
   const shortCreator = new ShortCreator(
@@ -49,17 +92,14 @@ async function main() {
     whisper,
     ffmpeg,
     pexelsApi,
-    musicManager,
+    musicManager
   );
 
   if (!config.runningInDocker) {
-    // the project is running with npm - we need to check if the installation is correct
     if (fs.existsSync(config.installationSuccessfulPath)) {
       logger.info("the installation is successful - starting the server");
     } else {
-      logger.info(
-        "testing if the installation was successful - this may take a while...",
-      );
+      logger.info("testing if the installation was successful - this may take a while...");
       try {
         const audioBuffer = (await kokoro.generate("hi", "af_heart")).audio;
         await ffmpeg.createMp3DataUri(audioBuffer);
@@ -74,7 +114,7 @@ async function main() {
       } catch (error: unknown) {
         logger.fatal(
           error,
-          "The environment is not set up correctly - please follow the instructions in the README.md file https://github.com/gyoridavid/short-video-maker",
+          "The environment is not set up correctly - please follow the instructions in the README.md file https://github.com/gyoridavid/short-video-maker"
         );
         process.exit(1);
       }
