@@ -10,7 +10,6 @@ const defaultPort = 3123;
 const whisperVersion = "1.7.1";
 const defaultWhisperModel: whisperModels = "medium.en"; // possible options: "tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "large-v3", "large-v3-turbo"
 
-// Create the global logger
 export const logger = pino({
   level: process.env.LOG_LEVEL || defaultLogLevel,
   timestamp: pino.stdTimeFunctions.isoTime,
@@ -20,6 +19,24 @@ export const logger = pino({
     },
   },
 });
+
+export type Scene = {
+  text: string;
+  searchTerms?: string[];
+  video?: string;
+  enhancedPrompt?: string;
+};
+
+export type InputData = {
+  scenes: Scene[];
+  config?: {
+    paddingBack?: number;
+    music?: string;
+    captionPosition?: string;
+    captionBackgroundColor?: string;
+    orientation?: "portrait" | "landscape" | "square";
+  };
+};
 
 export class Config {
   private dataDirPath: string;
@@ -33,6 +50,7 @@ export class Config {
   public packageDirPath: string;
   public musicDirPath: string;
   public pexelsApiKey: string;
+  public geminiApiKey: string;
   public logLevel: pino.Level;
   public whisperVerbose: boolean;
   public port: number;
@@ -42,11 +60,13 @@ export class Config {
   public whisperModel: whisperModels = defaultWhisperModel;
   public kokoroModelPrecision: kokoroModelPrecision = "fp32";
 
-  // docker-specific, performance-related settings to prevent memory issues
   public concurrency?: number;
   public videoCacheSizeInBytes: number | null = null;
 
-  constructor() {
+  // store the data coming from the API
+  public inputData?: InputData;
+
+  constructor(inputData?: InputData) {
     this.dataDirPath =
       process.env.DATA_DIR_PATH ||
       path.join(os.homedir(), ".ai-agents-az-video-generator");
@@ -70,6 +90,7 @@ export class Config {
     this.musicDirPath = path.join(this.staticDirPath, "music");
 
     this.pexelsApiKey = process.env.PEXELS_API_KEY as string;
+    this.geminiApiKey = process.env.GEMINI_API_KEY as string;
     this.logLevel = (process.env.LOG_LEVEL || defaultLogLevel) as pino.Level;
     this.whisperVerbose = process.env.WHISPER_VERBOSE === "true";
     this.port = process.env.PORT ? parseInt(process.env.PORT) : defaultPort;
@@ -92,6 +113,12 @@ export class Config {
       this.videoCacheSizeInBytes = parseInt(
         process.env.VIDEO_CACHE_SIZE_IN_BYTES,
       );
+    }
+
+    // assign the received inputData (if any)
+    if (inputData) {
+      this.inputData = inputData;
+      logger.info(`Input data loaded with ${inputData.scenes.length} scenes.`);
     }
   }
 
